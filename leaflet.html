@@ -99,7 +99,15 @@
         #limpiarFiltroBtn:hover {
             background-color: #f8f8f8;
         }
-
+/*Etiqetas de la capa barrios (Tooltip)*/
+        .custom-tooltip {
+            background-color: transparent;
+            border: none;
+            color: black;
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+            text-shadow: 1px 1px 1px white;
+        }
 
     </style>
 </head>
@@ -652,28 +660,34 @@ var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de CONSTRUCCIONES 
     }
 });
 
-var BarriosLayer = L.geoJson(BARRIO, {  // Capa de Barrios
+//Configuración de capas y visibilidad de barrios
+var BarriosLayer = L.geoJson(BARRIO, {
     style: function(feature) {
         return {
-            color: '#ff7f00', // Color del borde
-            fillColor: '#ff7f00', // Color de relleno
-            fillOpacity: 0.30, // Transparencia del relleno
-            weight: 0.3 // Espesor del borde
+            color: '#ff7f00',
+            fillColor: '#ff7f00',
+            fillOpacity: 0.00,
+            weight: 0.8
         };
     },
     onEachFeature: function(feature, layer) {
-        // Asignar un evento para cuando se haga clic en un feature
+        if (feature.properties && feature.properties.nombre) {
+            layer.bindTooltip(feature.properties.nombre, {
+                permanent: true,
+                direction: 'center',
+                className: 'barrio-label'
+            });
+        }
+
         layer.on('click', function() {
-            // Crear el contenido del popup cuando se hace clic
             var popupContent = '';
             if (feature.properties) {
                 popupContent = 'Nombre Barrio: ' + feature.properties.nombre + '<br>' +
-                               'Comuna: ' + feature.properties.Comuna
+                               'Comuna: ' + feature.properties.Comuna;
             }
             layer.bindPopup(popupContent).openPopup();
         });
 
-        // Eventos para cambiar el estilo al pasar el mouse
         layer.on({
             mouseover: function(e) {
                 var layer = e.target;
@@ -688,10 +702,143 @@ var BarriosLayer = L.geoJson(BARRIO, {  // Capa de Barrios
                 BarriosLayer.resetStyle(e.target);
             }
         });
+    },
+}).addTo(map);
+
+// Inicialmente, quita la capa del mapa
+map.removeLayer(BarriosLayer);
+
+// Gestiona la visibilidad de la capa basada en el nivel de zoom
+map.on('zoomend', function() {
+    if (map.getZoom() >= 16) {
+        map.addLayer(BarriosLayer); // Muestra la capa si el zoom es 18 o superior
+    } else {
+        map.removeLayer(BarriosLayer); // Oculta la capa si el zoom es menor a 18
     }
 });
-map.addLayer(BarriosLayer);
 
+
+
+// Define updateLabels para manejar la visibilidad de las etiquetas
+function updateLabels() {
+    if (map.getZoom() >= 18) {
+        BarriosLayer.eachLayer(function(layer) {
+            if (!layer.getTooltip()) {
+                layer.bindTooltip(layer.feature.properties.nombre, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'custom-tooltip'
+                }).openTooltip();
+            } else {
+                layer.openTooltip();
+            }
+        });
+    } else {
+        BarriosLayer.eachLayer(function(layer) {
+            if (layer.getTooltip()) {
+                layer.closeTooltip();
+            }
+        });
+    }
+}
+
+// Asegúrate de que updateLabels se llama al cambiar el zoom
+map.on('zoomend', updateLabels);
+
+// Asegúrate de que updateLabels se llama al añadir o quitar la capa
+map.on('overlayadd overlayremove', function(e) {
+    if (e.layer === BarriosLayer) {
+        updateLabels();
+    }
+});
+
+// Inicializa sin etiquetas
+updateLabels();
+
+//Configuración de capas y visibilidad de Rutas
+var BarriosLayer = L.geoJson(BARRIO, {
+    style: function(feature) {
+        return {
+            color: '#b2df8a',
+            fillColor: '#b2df8a',
+            fillOpacity: 0.15,
+            weight: 0.8
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        if (feature.properties && feature.properties.Ruta) {
+            layer.bindTooltip(feature.properties.Ruta, {
+                permanent: true,
+                direction: 'center',
+                className: 'ruta-label'
+            });
+        }
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3,
+                    color: '#666',
+                    fillColor: '#0bf9ed',
+                    fillOpacity: 0.3
+                });
+            },
+            mouseout: function(e) {
+                BarriosLayer.resetStyle(e.target);
+            }
+        });
+    },
+}).addTo(map);
+
+// Inicialmente, quita la capa del mapa
+map.removeLayer(BarriosLayer);
+
+// Gestiona la visibilidad de la capa basada en el nivel de zoom
+map.on('zoomend', function() {
+    if (map.getZoom() >= 16) {
+        map.addLayer(BarriosLayer); // Muestra la capa si el zoom es 18 o superior
+    } else {
+        map.removeLayer(BarriosLayer); // Oculta la capa si el zoom es menor a 18
+    }
+});
+
+
+
+// Define updateLabels para manejar la visibilidad de las etiquetas
+function updateLabels() {
+    if (map.getZoom() >= 18) {
+        BarriosLayer.eachLayer(function(layer) {
+            if (!layer.getTooltip()) {
+                layer.bindTooltip(layer.feature.properties.nombre, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'custom-tooltip'
+                }).openTooltip();
+            } else {
+                layer.openTooltip();
+            }
+        });
+    } else {
+        BarriosLayer.eachLayer(function(layer) {
+            if (layer.getTooltip()) {
+                layer.closeTooltip();
+            }
+        });
+    }
+}
+
+// Asegúrate de que updateLabels se llama al cambiar el zoom
+map.on('zoomend', updateLabels);
+
+// Asegúrate de que updateLabels se llama al añadir o quitar la capa
+map.on('overlayadd overlayremove', function(e) {
+    if (e.layer === BarriosLayer) {
+        updateLabels();
+    }
+});
+
+// Inicializa sin etiquetas
+updateLabels();
 
 //Cargado de las capas GeoJSON 
 var overlayMaps = {
@@ -709,6 +856,14 @@ var overlayMaps = {
 
 L.control.layers(null, overlayMaps).addTo(map);
 
+// Asegúrate de que geoJsonLayer esté siempre en primer plano
+geoJsonLayer.bringToFront();
+
+// También puedes asegurarte de que geoJsonLayer se mantenga en primer plano escuchando eventos que puedan cambiar el orden de las capas
+map.on('overlayadd', function() {
+    markers.bringToFront();
+    geoJsonLayer.bringToFront();
+});
     </script>
 </body>
 </html>
