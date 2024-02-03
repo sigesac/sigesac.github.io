@@ -18,6 +18,7 @@
     <script type="text/javascript" src="U_MANZANA.js"></script>
     <script type="text/javascript" src="U_TERRENO.js"></script>
     <script type="text/javascript" src="BARRIOS.js"></script>
+    <script type="text/javascript" src="Rutas.js"></script>
     <style>
 /* Ajuste para que el mapa ocupe toda la pantalla */
         body, html {
@@ -198,7 +199,7 @@ var markers = L.markerClusterGroup({
             iconSize: L.point(40, 40)
         });
     },
-    disableClusteringAtZoom: 18, // Desactiva el clustering al alcanzar el nivel de zoom 18
+    disableClusteringAtZoom: 17, // Desactiva el clustering al alcanzar el nivel de zoom 17
 });
 
 var geoJsonLayer = L.geoJson(usuario, {
@@ -207,7 +208,7 @@ var geoJsonLayer = L.geoJson(usuario, {
                 var currentZoom = map.getZoom();
         
         // Definir el tamaño del radio basado en el nivel de zoom
-        var radius = currentZoom >= 18 ? 10 : 5;  // Ajusta estos valores según tus necesidades
+        var radius = currentZoom >= 17 ? 10 : 5;  // Ajusta estos valores según tus necesidades
 
         var estilo = estilosComServicio[feature.properties.Com_Servicio] || '#000000'; // Color por defecto
         return L.circleMarker(latlng, {
@@ -238,7 +239,7 @@ map.addLayer(markers);
 
 // Ajustar la vista del mapa para mostrar los últimos clusters separados 1 a 1
 map.on('zoomend', function() {
-    if (map.getZoom() >= 18) {  // ajusta este valor según tus necesidades
+    if (map.getZoom() >= 17) {  // ajusta este valor según tus necesidades
         // lógica para manejar los markers individualmente
     }
 });
@@ -660,6 +661,8 @@ var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de CONSTRUCCIONES 
     }
 });
 
+//-------------------------------------------------------------------------------------------
+
 //Configuración de capas y visibilidad de barrios
 var BarriosLayer = L.geoJson(BARRIO, {
     style: function(feature) {
@@ -710,7 +713,7 @@ map.removeLayer(BarriosLayer);
 
 // Gestiona la visibilidad de la capa basada en el nivel de zoom
 map.on('zoomend', function() {
-    if (map.getZoom() >= 16) {
+    if (map.getZoom() >= 18) {
         map.addLayer(BarriosLayer); // Muestra la capa si el zoom es 18 o superior
     } else {
         map.removeLayer(BarriosLayer); // Oculta la capa si el zoom es menor a 18
@@ -755,16 +758,19 @@ map.on('overlayadd overlayremove', function(e) {
 // Inicializa sin etiquetas
 updateLabels();
 
+//--------------------------------------------------------------------------------------------------
+
 //Configuración de capas y visibilidad de Rutas
-var BarriosLayer = L.geoJson(BARRIO, {
+var RUTASLayer = L.geoJson(RUTAS, {
     style: function(feature) {
         return {
-            color: '#b2df8a',
-            fillColor: '#b2df8a',
-            fillOpacity: 0.15,
+            color: '#a47158',
+            fillColor: '#a47158',
+            fillOpacity: 0.3,
             weight: 0.8
         };
     },
+    
     onEachFeature: function(feature, layer) {
         if (feature.properties && feature.properties.Ruta) {
             layer.bindTooltip(feature.properties.Ruta, {
@@ -784,65 +790,32 @@ var BarriosLayer = L.geoJson(BARRIO, {
                 });
             },
             mouseout: function(e) {
-                BarriosLayer.resetStyle(e.target);
+                RUTASLayer.resetStyle(e.target);
             }
         });
     },
 }).addTo(map);
 
 // Inicialmente, quita la capa del mapa
-map.removeLayer(BarriosLayer);
+map.removeLayer(RUTASLayer);
 
 // Gestiona la visibilidad de la capa basada en el nivel de zoom
 map.on('zoomend', function() {
-    if (map.getZoom() >= 16) {
-        map.addLayer(BarriosLayer); // Muestra la capa si el zoom es 18 o superior
+    var currentZoom = map.getZoom();
+    if (currentZoom >= 16 && currentZoom <= 17) {
+        if (!map.hasLayer(RUTASLayer)) {
+            map.addLayer(RUTASLayer); // Muestra la capa si el zoom está entre 16 y 18
+        }
     } else {
-        map.removeLayer(BarriosLayer); // Oculta la capa si el zoom es menor a 18
+        if (map.hasLayer(RUTASLayer)) {
+            map.removeLayer(RUTASLayer); // Oculta la capa si el zoom es menor a 16 o mayor a 18
+        }
     }
 });
-
-
-
-// Define updateLabels para manejar la visibilidad de las etiquetas
-function updateLabels() {
-    if (map.getZoom() >= 18) {
-        BarriosLayer.eachLayer(function(layer) {
-            if (!layer.getTooltip()) {
-                layer.bindTooltip(layer.feature.properties.nombre, {
-                    permanent: true,
-                    direction: 'center',
-                    className: 'custom-tooltip'
-                }).openTooltip();
-            } else {
-                layer.openTooltip();
-            }
-        });
-    } else {
-        BarriosLayer.eachLayer(function(layer) {
-            if (layer.getTooltip()) {
-                layer.closeTooltip();
-            }
-        });
-    }
-}
-
-// Asegúrate de que updateLabels se llama al cambiar el zoom
-map.on('zoomend', updateLabels);
-
-// Asegúrate de que updateLabels se llama al añadir o quitar la capa
-map.on('overlayadd overlayremove', function(e) {
-    if (e.layer === BarriosLayer) {
-        updateLabels();
-    }
-});
-
-// Inicializa sin etiquetas
-updateLabels();
 
 //Cargado de las capas GeoJSON 
 var overlayMaps = {
-    //"Usuarios": geoJsonLayer, // Capa de usuarios
+    "Rutas": RUTASLayer,
     "Barrios": BarriosLayer,
     "Construcciones Urbanas": UConstruccionLayer,
     "Terrenos Urbanos": UTerrenoLayer,
@@ -862,7 +835,7 @@ geoJsonLayer.bringToFront();
 // También puedes asegurarte de que geoJsonLayer se mantenga en primer plano escuchando eventos que puedan cambiar el orden de las capas
 map.on('overlayadd', function() {
     markers.bringToFront();
-    geoJsonLayer.bringToFront();
+    //geoJsonLayer.bringToFront();
 });
     </script>
 </body>
