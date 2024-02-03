@@ -17,6 +17,7 @@
     <script type="text/javascript" src="U_CONSTRUCCION.js"></script>
     <script type="text/javascript" src="U_MANZANA.js"></script>
     <script type="text/javascript" src="U_TERRENO.js"></script>
+    <script type="text/javascript" src="BARRIOS.js"></script>
     <style>
 /* Ajuste para que el mapa ocupe toda la pantalla */
         body, html {
@@ -651,11 +652,51 @@ var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de CONSTRUCCIONES 
     }
 });
 
+var BarriosLayer = L.geoJson(BARRIO, {  // Capa de Barrios
+    style: function(feature) {
+        return {
+            color: '#ff7f00', // Color del borde
+            fillColor: '#ff7f00', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Asignar un evento para cuando se haga clic en un feature
+        layer.on('click', function() {
+            // Crear el contenido del popup cuando se hace clic
+            var popupContent = '';
+            if (feature.properties) {
+                popupContent = 'Nombre Barrio: ' + feature.properties.nombre + '<br>' +
+                               'Comuna: ' + feature.properties.Comuna
+            }
+            layer.bindPopup(popupContent).openPopup();
+        });
+
+        // Eventos para cambiar el estilo al pasar el mouse
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3,
+                    color: '#666',
+                    fillColor: 'yellow',
+                    fillOpacity: 0.7
+                });
+            },
+            mouseout: function(e) {
+                BarriosLayer.resetStyle(e.target);
+            }
+        });
+    }
+});
+map.addLayer(BarriosLayer);
 
 
 //Cargado de las capas GeoJSON 
 var overlayMaps = {
     //"Usuarios": geoJsonLayer, // Capa de usuarios
+    "Barrios": BarriosLayer,
     "Construcciones Urbanas": UConstruccionLayer,
     "Terrenos Urbanos": UTerrenoLayer,
     "Manzanas Urbanas":UManzanasLayer,
