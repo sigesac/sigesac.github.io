@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
+    <link rel="stylesheet" href="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/MarkerCluster.css" />
+    <script src="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="leaflet-search-master\src\leaflet-search.js"></script>
+    <link rel="stylesheet" href="leaflet-search-master\src\leaflet-search.css" />
+    <script type="text/javascript" src="BD_Usuarios.js"></script>
+    <script type="text/javascript" src="R_SECTOR.js"></script>
+    <script type="text/javascript" src="R_CONSTRUCCION.js"></script>
+    <script type="text/javascript" src="R_VEREDA.js"></script>
+    <script type="text/javascript" src="R_TERRENO.js"></script>
+    <script type="text/javascript" src="U_SECTOR.js"></script>
+    <script type="text/javascript" src="U_CONSTRUCCION.js"></script>
+    <script type="text/javascript" src="U_MANZANA.js"></script>
+    <script type="text/javascript" src="U_TERRENO.js"></script>
+    <style>
+/* Ajuste para que el mapa ocupe toda la pantalla */
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map { 
+            width: 100%;
+            height: 100%;
+        }
+        .menu-leyenda-container {
+            position: absolute;
+            bottom: 10px; /*aqui puedo cambiar si es arriba o abajo la leyenda*/
+            right: 10px; /*aqui puedo cambiar la posición*/
+            z-index: 1000;
+            background: white;
+            border: 1px solid #999;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            padding: 5px;
+            font-size: 14px;
+            line-height: 18px;
+        }
+        .menu-leyenda-header {
+            background: #f4f4f4;
+            cursor: pointer;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .menu-leyenda-content {
+            display: none;
+            padding: 5px;
+        }
+        .menu-leyenda-content.active {
+            display: block;
+        }
+/*Estilos en el PopUp*/
+        .leaflet-popup-content {
+            font-family: Arial, sans-serif;
+            line-height: 1.4;
+            color: #333;
+            background-color: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+        }
+/*Para ajustar titulo del PopUp*/
+        .popup-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+            /* Otros estilos que desees añadir, como tamaño de fuente, color, etc. */
+        }
+/* Personalizar el control de capas de Leaflet */
+        .leaflet-control-layers {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            /* Añade aquí más estilos según tus necesidades */
+        }
+/*Personalizar boton de restablecer filtro*/
+        #limpiarFiltroBtn {
+            position: absolute;
+            top: 10px;
+            left: 80px;
+            z-index: 1000;
+            background-color: #fff;
+            color: #000;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+            font-family: Arial, sans-serif;
+        }
+
+        #limpiarFiltroBtn:hover {
+            background-color: #f8f8f8;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div id='map' style="width: 100%; height: 100%;"></div>
+
+    <div class="menu-leyenda-container">
+        <div class="menu-leyenda-header"><h3>Leyenda</h3></div>
+        <div class="menu-leyenda-content" id="leyenda-content">
+        </div>
+        <button id="resetButton" onclick="restablecerVista()">Restablecer Vista</button>
+    </div>   
+    <div id="controls">
+        <div id="filtro">
+            <input type="text" id="codigoInput" placeholder="Ingrese Código Acu">
+            <button onclick="filtrarPorCodigo()">Filtrar</button>
+            <button id="limpiarFiltroBtn" onclick="limpiarFiltro()">Limpiar Filtro</button>
+        </div>
+    </div>
+    </div>        
+    <script>
+// Inicialización del mapa con vista centrada en Florencia, Colombia
+        var map = L.map('map').setView([1.617, -75.617], 12);
+        L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
+            maxZoom: 20,
+        }).addTo(map); 
+        L.control.scale().addTo(map);
+
+//Clasifica la capa de acuerdo al campo com_servicio
+var estilosComServicio = {
+    'Acu': '#3D2BF4',
+    'Acu-Alc': '#41E6F5',
+    'Acu-Alc-Aseo': '#F5C759',
+    'Acu-Aseo': '#F4752E',
+    'Alc-Aseo': '#F54D22',
+    'Ninguno': '#FFFFFF'
+};
+var etiquetasPropiedades = { //Etiquetas para personalizar popup
+    "Codigo_Acu": "Código Cliente",
+    "NombreSuscriptor_Acu": "Nombre Suscriptor",
+    "MacroRuteo_Acu": "Macro Ruteo",
+    "Ruteo_Acu": "Ruteo",
+    "Com_Servicio": "Servicios",
+    "Aseo": "Aseo",
+    "ESTADO_Aseo": "Estado Aseo",
+    "Num_Medido_Acu": "N° Medidor Acueducto",
+    "Marca_Medi_Acu": "Marca Medidor",
+    "Estrato_Acu": "Estrato",
+    "Mat_Catast_Acu": "Matricula Catastral",
+    "LinkApp": "LinkApp"
+};
+
+var coloresCategorias = {
+    'Acu': '#3D2BF4',
+    'Acu-Alc': '#41E6F5',
+    'Acu-Alc-Aseo': '#F5C759',
+    'Acu-Aseo': '#F4752E',
+    'Alc-Aseo': '#F54D22',
+    'Ninguno': '#FFFFFF'
+};
+var markers = L.markerClusterGroup({
+    iconCreateFunction: function(cluster) {
+        var markers = cluster.getAllChildMarkers();
+        var conteoCategorias = {};
+        var categoriaDominante = '';
+        var maxConteo = 0;
+
+        // Contar las categorías de los marcadores en el cluster
+        markers.forEach(function(marker) {
+            var categoria = marker.feature.properties.Com_Servicio;
+            if (categoria) {
+                conteoCategorias[categoria] = (conteoCategorias[categoria] || 0) + 1;
+                if (conteoCategorias[categoria] > maxConteo) {
+                    maxConteo = conteoCategorias[categoria];
+                    categoriaDominante = categoria;
+                }
+            }
+        });
+
+        // Obtener el color para la categoría dominante
+        var color = coloresCategorias[categoriaDominante] || '#000000'; // Color por defecto si no hay dominante
+
+        // Crear y retornar el icono personalizado
+        return L.divIcon({
+            html: '<div style="background-color: ' + color + '">' + markers.length + '</div>',
+            className: 'marker-cluster',
+            iconSize: L.point(40, 40)
+        });
+    },
+    disableClusteringAtZoom: 18, // Desactiva el clustering al alcanzar el nivel de zoom 18
+});
+
+var geoJsonLayer = L.geoJson(usuario, {
+    pointToLayer: function (feature, latlng) {
+                // Obtener el nivel de zoom actual del mapa
+                var currentZoom = map.getZoom();
+        
+        // Definir el tamaño del radio basado en el nivel de zoom
+        var radius = currentZoom >= 18 ? 10 : 5;  // Ajusta estos valores según tus necesidades
+
+        var estilo = estilosComServicio[feature.properties.Com_Servicio] || '#000000'; // Color por defecto
+        return L.circleMarker(latlng, {
+            radius:radius,
+            fillColor: estilo,
+            color: "#000",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        });
+    },
+    onEachFeature: function (feature, layer) {
+        if (feature.properties) {
+            var popupContent = '<div class="popup"><div class="popup-title">Datos Cliente</div>';
+            for (var key in etiquetasPropiedades) {
+                if (feature.properties.hasOwnProperty(key)) {
+                    popupContent += '<b>' + etiquetasPropiedades[key] + ':</b> ' + feature.properties[key] + '<br>';
+                }
+            }
+            popupContent += '</div>';
+            layer.bindPopup(popupContent);
+        }
+    }
+});
+
+markers.addLayer(geoJsonLayer);
+map.addLayer(markers);
+
+// Ajustar la vista del mapa para mostrar los últimos clusters separados 1 a 1
+map.on('zoomend', function() {
+    if (map.getZoom() >= 18) {  // ajusta este valor según tus necesidades
+        // lógica para manejar los markers individualmente
+    }
+});
+
+//------------------------------------------------------------------
+
+//LEYENDA
+// Función para alternar la visibilidad del contenido de la leyenda
+document.querySelector('.menu-leyenda-header').onclick = function() {
+    document.getElementById('leyenda-content').classList.toggle('active');
+};
+
+// Código para llenar el contenido de la leyenda
+function filtrarPorCodigo() {
+    var codigoBuscado = document.getElementById('codigoInput').value.trim();
+
+    var filtroGeoJson = L.geoJson(usuario, {
+        pointToLayer: function (feature, latlng) {
+            return L.circleMarker(latlng, MarkerOptions);
+        },
+        filter: function(feature, layer) {
+            return ('' + feature.properties.Codigo_Acu) === codigoBuscado;
+        },
+        // Estilo y popup como los tengas definidos
+        style: estilo_monumentos,
+        onEachFeature: popup_monumentos
+    });
+
+    markers.clearLayers();
+    markers.addLayer(filtroGeoJson);
+}
+
+var leyendaContent = document.getElementById('leyenda-content');
+var categorias = ['Acu', 'Acu-Alc', 'Acu-Alc-Aseo', 'Acu-Aseo', 'Alc-Aseo', 'Ninguno'];
+var colores = ['#3D2BF4', '#41E6F5', '#F5C759', '#F4752E', '#F54D22', '#FFFFFF'];
+categorias.forEach(function(categoria, index) {
+    var color = colores[index];
+    leyendaContent.innerHTML += '<div><i style="background:' + color + '; width: 18px; height: 18px; display: inline-block; margin-right: 5px;"></i>' + categoria + '</div>';
+});
+
+//---------------------------------------------------------------
+
+//FILTRO
+//  Configuración del Control de Búsqueda
+var searchControl = new L.Control.Search({
+    layer: markers,
+    propertyName: 'Codigo_Acu',
+    moveToLocation: function(latlng, title, map) {
+        // Función personalizada para manejar el movimiento y desagrupamiento
+        customMoveToLocation(latlng, title, map);
+    }
+});
+
+map.addControl(searchControl);
+
+// Crear la Función customMoveToLocation
+function customMoveToLocation(latlng, title, map) {
+    if (map.getZoom() < 18) {
+        map.setView(latlng, 18); // Asegura que el zoom sea al menos 18 antes de intentar abrir el popup
+    } else {
+        map.setView(latlng); // Si el zoom ya es 18 o más, solo centra el mapa en el marcador
+    }
+
+    setTimeout(function() {
+        let targetMarker = null;
+
+        // Buscar el marcador específico
+        markers.eachLayer(function(layer) {
+            if (layer.getLatLng().equals(latlng)) {
+                targetMarker = layer;
+            }
+        });
+
+        if (targetMarker) {
+            // Abrir el popup del marcador, no necesita desagrupar porque disableClusteringAtZoom se encarga de eso
+            targetMarker.openPopup();
+        }
+    }, 1000); // Puede que necesites ajustar este tiempo
+}
+//Restablecer viste en el mapa a la inicial
+function restablecerVista() {
+    map.setView([1.617, -75.617], 12); // Usa las coordenadas y zoom iniciales del mapa
+    markers.clearLayers(); // Limpia los marcadores actuales
+    markers.addLayer(geoJsonLayer); // Añade de nuevo todos los marcadores
+}
+//Restablecer el filtro
+function limpiarFiltro() {
+    map.setView([1.617, -75.617], 12); // Usa las coordenadas y zoom iniciales del mapa
+    markers.clearLayers(); // Limpia los marcadores actuales
+    markers.addLayer(geoJsonLayer); // Añade de nuevo todos los marcadores
+    map.closePopup(); // Cierra cualquier popup abierto
+    searchControl._markerSearch.removeFrom(map); // Elimina el marcador de búsqueda del mapa
+}
+
+//--------------------------------------------------------------
+
+//CAPAS
+//Cargado de las capas en GeoJSON Rurales
+var RSectorLayer = L.geoJson(R_Sector, {  //Capa de Sectores
+    style: function(feature) {
+        return {
+            color: 'black', // Color del borde
+            fillColor: '#838383', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Código MUN: ' + feature.properties.CODIGO_MUN);
+        }
+        
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                RSectorLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var  RVeredaLayer = L.geoJson(RVereda, { //Capa Veredas
+    style: function(feature) {
+        return {
+            color: 'black', // Color del borde
+            fillColor: '#946E23', // Color de relleno
+            fillOpacity: 0.3, // Transparencia del relleno
+            weight: 1 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Nombre: ' + feature.properties.NOMBRE);
+        }
+
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                RVeredaLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var  RTerrenoLayer = L.geoJson(RTerreno, { //Capa terrenos rurales
+    style: function(feature) {
+        return {
+            color: '#e5b636', // Color del borde
+            fillColor: '#e5b636', // Color de relleno
+            fillOpacity: 0.3, // Transparencia del relleno
+            weight: 1 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Código Vereda: ' + feature.properties.VEREDA_COD + '<br>' +
+                            'Código Terreno:' + feature.properties.CODIGO_TER);
+        }
+
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                RTerrenoLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var  RconstruccionLayer = L.geoJson(RConstruccion, { //Capa terrenos rurales
+    style: function(feature) {
+        return {
+            color: '#AC3723', // Color del borde
+            fillColor: '#AC3723', // Color de relleno
+            fillOpacity: 0.3, // Transparencia del relleno
+            weight: 1 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Terreno Código: ' + feature.properties.TERRENO_COD + '<br>' +
+                            'Tipo Construcción:' + feature.properties.TIPO_CONST + '<br>' +
+                            'Tipo Dominio:' + feature.properties.TIPO_DOMIN + '<br>' +
+                            'Número de Pisos:' + feature.properties.NUMERO_PIS);
+        }
+
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                RconstruccionLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var USectorLayer = L.geoJson(U_Sector, {  //Capa de Sectores Urbanos
+    style: function(feature) {
+        return {
+            color: 'black', // Color del borde
+            fillColor: '#838383', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Código MUN: ' + feature.properties.CODIGO_MUN);
+        }
+        
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                USectorLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var UManzanasLayer = L.geoJson(U_Manzanas, {  //Capa de Manzanas Urbanas 
+    style: function(feature) {
+        return {
+            color: '#E8621A', // Color del borde
+            fillColor: '#E8621A', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Código Barrio: ' + feature.properties.BARRIO_CODIGO);
+        }
+        
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                UManzanasLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var UManzanasLayer = L.geoJson(U_Manzanas, {  //Capa de Manzanas Urbanas 
+    style: function(feature) {
+        return {
+            color: '#E8621A', // Color del borde
+            fillColor: '#E8621A', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Popup
+        if (feature.properties) {
+            layer.bindPopup('Código: ' + feature.properties.CODIGO + '<br>' +
+                            'Código Barrio: ' + feature.properties.BARRIO_CODIGO);
+        }
+        
+        // Eventos para abrir y cerrar popup
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3, // Espesor del borde más grueso
+                    color: '#666', // Color del borde
+                    fillColor: 'yellow', // Color de relleno al seleccionar
+                    fillOpacity: 0.3 // Transparencia del relleno
+                });
+            },
+            mouseout: function(e) {
+                UManzanasLayer.resetStyle(e.target); // Resetea al estilo original cuando el mouse sale del feature
+            }
+        });
+    }
+});
+
+var UTerrenoLayer = L.geoJson(U_Terreno, {  // Capa de Manzanas Urbanas
+    style: function(feature) {
+        return {
+            color: '#E8621A', // Color del borde
+            fillColor: '#E8621A', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Asignar evento para cuando se haga clic en un feature
+        layer.on('click', function() {
+            // Crear contenido del popup cuando se hace clic
+            var popupContent = '';
+            if (feature.properties) {
+                popupContent = 'Código: ' + feature.properties.CODIGO + '<br>' +
+                               'Código Manzana: ' + feature.properties.MANZANA_COD;
+            }
+            layer.bindPopup(popupContent).openPopup();
+        });
+
+        // Eventos para cambiar el estilo al pasar el mouse
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3,
+                    color: '#666',
+                    fillColor: 'yellow',
+                    fillOpacity: 0.7
+                });
+            },
+            mouseout: function(e) {
+                UTerrenoLayer.resetStyle(e.target);
+            }
+        });
+    }
+});
+
+var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de CONSTRUCCIONES Urbanas
+    style: function(feature) {
+        return {
+            color: '#DD9523', // Color del borde
+            fillColor: '#DD9523', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Asignar un evento para cuando se haga clic en un feature
+        layer.on('click', function() {
+            // Crear el contenido del popup cuando se hace clic
+            var popupContent = '';
+            if (feature.properties) {
+                popupContent = 'Código: ' + feature.properties.CODIGO + '<br>' +
+                               'Terreno Código: ' + feature.properties.TERRENO_COD + '<br>' +
+                               'Tipo Construcción: ' + feature.properties.TIPO_CONST + '<br>' +
+                               'Tipo Dominio: ' + feature.properties.TIPO_DOMIN + '<br>' +
+                               'Número de Pisos: ' + feature.properties.NUMERO_PIS;
+            }
+            layer.bindPopup(popupContent).openPopup();
+        });
+
+        // Eventos para cambiar el estilo al pasar el mouse
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3,
+                    color: '#666',
+                    fillColor: 'yellow',
+                    fillOpacity: 0.7
+                });
+            },
+            mouseout: function(e) {
+                UConstruccionLayer.resetStyle(e.target);
+            }
+        });
+    }
+});
+
+var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de Barrios
+    style: function(feature) {
+        return {
+            color: '#DD9523', // Color del borde
+            fillColor: '#DD9523', // Color de relleno
+            fillOpacity: 0.30, // Transparencia del relleno
+            weight: 0.3 // Espesor del borde
+        };
+    },
+    onEachFeature: function(feature, layer) {
+        // Asignar un evento para cuando se haga clic en un feature
+        layer.on('click', function() {
+            // Crear el contenido del popup cuando se hace clic
+            var popupContent = '';
+            if (feature.properties) {
+                popupContent = 'Código: ' + feature.properties.CODIGO + '<br>' +
+                               'Terreno Código: ' + feature.properties.TERRENO_COD + '<br>' +
+                               'Tipo Construcción: ' + feature.properties.TIPO_CONST + '<br>' +
+                               'Tipo Dominio: ' + feature.properties.TIPO_DOMIN + '<br>' +
+                               'Número de Pisos: ' + feature.properties.NUMERO_PIS;
+            }
+            layer.bindPopup(popupContent).openPopup();
+        });
+
+        // Eventos para cambiar el estilo al pasar el mouse
+        layer.on({
+            mouseover: function(e) {
+                var layer = e.target;
+                layer.setStyle({
+                    weight: 3,
+                    color: '#666',
+                    fillColor: 'yellow',
+                    fillOpacity: 0.7
+                });
+            },
+            mouseout: function(e) {
+                UConstruccionLayer.resetStyle(e.target);
+            }
+        });
+    }
+});
+
+//Cargado de las capas GeoJSON 
+var overlayMaps = {
+    //"Usuarios": geoJsonLayer, // Capa de usuarios
+    "Construcciones Urbanas": UConstruccionLayer,
+    "Terrenos Urbanos": UTerrenoLayer,
+    "Manzanas Urbanas":UManzanasLayer,
+    "Sectores Urbanos": USectorLayer,
+    "Construcciones Rurales":RconstruccionLayer,
+    "Terrenos Rurales": RTerrenoLayer,
+    "Veredas Rurales": RVeredaLayer,
+    "Sectores Rurales": RSectorLayer,  // Capa de sectores
+};
+
+L.control.layers(null, overlayMaps).addTo(map);
+
+    </script>
+</body>
+</html>
