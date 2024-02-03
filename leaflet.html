@@ -3,11 +3,11 @@
 <head>
     <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
-    <link rel="stylesheet" href="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/MarkerCluster.css" />
-    <script src="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/leaflet.markercluster.js"></script>
-    <link rel="stylesheet" href="D:/ESAC SA/Leaflet.markercluster-1.4.1/dist/MarkerCluster.Default.css" />
-    <script src="leaflet-search-master\src\leaflet-search.js"></script>
-    <link rel="stylesheet" href="leaflet-search-master\src\leaflet-search.css" />
+    <link rel="stylesheet" href="Leaflet.markercluster-1.4.1/dist/MarkerCluster.css" />
+    <script src="Leaflet.markercluster-1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="Leaflet.markercluster-1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="leaflet-search-master/src/leaflet-search.js"></script>
+    <link rel="stylesheet" href="leaflet-search-master/src/leaflet-search.css" />
     <script type="text/javascript" src="BD_Usuarios.js"></script>
     <script type="text/javascript" src="R_SECTOR.js"></script>
     <script type="text/javascript" src="R_CONSTRUCCION.js"></script>
@@ -651,47 +651,7 @@ var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de CONSTRUCCIONES 
     }
 });
 
-var UConstruccionLayer = L.geoJson(U_Construccion, {  // Capa de Barrios
-    style: function(feature) {
-        return {
-            color: '#DD9523', // Color del borde
-            fillColor: '#DD9523', // Color de relleno
-            fillOpacity: 0.30, // Transparencia del relleno
-            weight: 0.3 // Espesor del borde
-        };
-    },
-    onEachFeature: function(feature, layer) {
-        // Asignar un evento para cuando se haga clic en un feature
-        layer.on('click', function() {
-            // Crear el contenido del popup cuando se hace clic
-            var popupContent = '';
-            if (feature.properties) {
-                popupContent = 'Código: ' + feature.properties.CODIGO + '<br>' +
-                               'Terreno Código: ' + feature.properties.TERRENO_COD + '<br>' +
-                               'Tipo Construcción: ' + feature.properties.TIPO_CONST + '<br>' +
-                               'Tipo Dominio: ' + feature.properties.TIPO_DOMIN + '<br>' +
-                               'Número de Pisos: ' + feature.properties.NUMERO_PIS;
-            }
-            layer.bindPopup(popupContent).openPopup();
-        });
 
-        // Eventos para cambiar el estilo al pasar el mouse
-        layer.on({
-            mouseover: function(e) {
-                var layer = e.target;
-                layer.setStyle({
-                    weight: 3,
-                    color: '#666',
-                    fillColor: 'yellow',
-                    fillOpacity: 0.7
-                });
-            },
-            mouseout: function(e) {
-                UConstruccionLayer.resetStyle(e.target);
-            }
-        });
-    }
-});
 
 //Cargado de las capas GeoJSON 
 var overlayMaps = {
