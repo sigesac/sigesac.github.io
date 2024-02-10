@@ -1,13 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+
     <link rel="stylesheet" href="Leaflet.markercluster-1.4.1/dist/MarkerCluster.css" />
     <script src="Leaflet.markercluster-1.4.1/dist/leaflet.markercluster.js"></script>
+
     <link rel="stylesheet" href="Leaflet.markercluster-1.4.1/dist/MarkerCluster.Default.css" />
     <script src="leaflet-search-master/src/leaflet-search.js"></script>
+
     <link rel="stylesheet" href="leaflet-search-master/src/leaflet-search.css" />
+
+    <link rel="stylesheet" href="Leaflet.HtmlLegend-master/dist/L.Control.HtmlLegend.css" />
+    <script src="Leaflet.HtmlLegend-master/dist/L.Control.HtmlLegend.js"></script>
+
     <script type="text/javascript" src="Layer/BD_Usuarios.js"></script>
     <script type="text/javascript" src="Layer/R_SECTOR.js"></script>
     <script type="text/javascript" src="Layer/R_CONSTRUCCION.js"></script>
@@ -56,6 +64,47 @@
         .menu-leyenda-content.active {
             display: block;
         }
+        .leaflet-control-html-legend {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .leyenda-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #999;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .leyenda-header {
+            margin: 0;
+            padding: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .leyenda-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        /* Estilo cuando la leyenda está expandida */
+        .leyenda-expanded .leyenda-content {
+            max-height: 500px; /* Ajusta según el contenido */
+            transition: max-height 0.5s ease-in;
+        }
+
+
 /*Estilos en el PopUp*/
         .leaflet-popup-content {
             font-family: Arial, sans-serif;
@@ -116,17 +165,21 @@
     <div id='map' style="width: 100%; height: 100%;"></div>
 
     <div class="menu-leyenda-container">
-        <div class="menu-leyenda-header"><h3>Leyenda</h3></div>
+        <div class="menu-leyenda-header"><h3>Leyenda Usuarios</h3></div>
         <div class="menu-leyenda-content" id="leyenda-content">
         </div>
         <button id="resetButton" onclick="restablecerVista()">Restablecer Vista</button>
     </div>   
     <div id="controls">
         <div id="filtro">
-            <input type="text" id="codigoInput" placeholder="Ingrese Código Acu">
-            <button onclick="filtrarPorCodigo()">Filtrar</button>
             <button id="limpiarFiltroBtn" onclick="limpiarFiltro()">Limpiar Filtro</button>
         </div>
+    <div id="leyendaPersonalizada" class="leyenda-container">
+            <div class="leyenda-header" onclick="toggleLeyenda()">Leyenda Otras Capas</div>
+            <div id="leyendaItems" class="leyenda-content"></div>
+            <div id="leyendaItems"></div>
+        </div>
+        
     </div>
     </div>        
     <script>
@@ -279,6 +332,47 @@ categorias.forEach(function(categoria, index) {
     var color = colores[index];
     leyendaContent.innerHTML += '<div><i style="background:' + color + '; width: 18px; height: 18px; display: inline-block; margin-right: 5px;"></i>' + categoria + '</div>';
 });
+
+// Definición de las capas y sus estilos para la leyenda
+const capasLeyenda = [
+    { nombre: 'Rutas', color: 'rgba(164, 113, 88, 0.5)' },
+    { nombre: 'Barrios', estiloIcono: 'border: 2px solid #ff7f00; background-color: transparent;' },
+    { nombre: 'Construcciones Urbanos', color: '#DD9523' },
+    { nombre: 'Terrenos Urbanos', color: '#E8621A' },
+    { nombre: 'Manzanas Urbanos', color: '#E8621A' },
+    { nombre: 'Sectores Urbanos', color: '#838383' },
+    { nombre: 'Veredas Rurales', color: '#946E23' },
+    { nombre: 'Sectores Rurales', color: '#838383' },
+    { nombre: 'Terrenos Rurales', color: '#e5b636' },
+    { nombre: 'Construcciones Rurales', color: '#AC3723' },
+];
+
+// Función para actualizar la leyenda
+function actualizarLeyenda() {
+    const contenedorLeyenda = document.getElementById('leyendaItems');
+    contenedorLeyenda.innerHTML = ''; // Limpiar contenido existente
+
+    capasLeyenda.forEach((capa) => {
+        const item = document.createElement('div');
+        item.className = 'leyenda-item';
+        let estilo = capa.color ? `background-color:${capa.color};` : capa.estiloIcono;
+        item.innerHTML = `<span style="${estilo} width:18px; height:18px; border-radius:50%; display:inline-block; margin-right:5px;"></span> ${capa.nombre}`;
+        contenedorLeyenda.appendChild(item);
+    });
+}
+
+// Llamar a actualizarLeyenda() para inicializar el contenido de la leyenda
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarLeyenda();
+});
+
+function toggleLeyenda() {
+    const leyenda = document.getElementById('leyendaPersonalizada');
+    const content = document.getElementById('leyendaItems');
+    
+    // Toggle la clase que controla si el contenido de la leyenda está expandido o no
+    leyenda.classList.toggle('leyenda-expanded');
+}
 
 //---------------------------------------------------------------
 
